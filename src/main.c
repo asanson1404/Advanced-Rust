@@ -7,9 +7,15 @@
 #define THREAD_STACK_SIZE   500
 #define PRIORITY            5
 #define GPIOA_NODE          DT_NODELABEL(gpioa)
+#define LED_NODE            DT_ALIAS(led0)
 
 // Get the struct device pointer to gpioa at compile time
 static const struct device * const gpioa_dev = DEVICE_DT_GET(GPIOA_NODE);
+
+// Get the GPIO (port, pin and flags) corresponding to the
+// led0 node alias at compile time.
+static const struct gpio_dt_spec led_gpio = GPIO_DT_SPEC_GET(LED_NODE, gpios);
+
 
 void my_thread() {
     printf("Hello, world\n");
@@ -18,6 +24,7 @@ void my_thread() {
 
 K_THREAD_STACK_DEFINE(thread_stack_area, THREAD_STACK_SIZE);
 struct k_thread my_thread_data;
+
 
 int main() {
 
@@ -32,14 +39,29 @@ int main() {
     k_thread_suspend(tid);
     //k_thread_abort(tid);
 
-    if (!device_is_ready(gpioa_dev)) {
-        return -ENODEV;  // Device is not ready
+    //=================================================
+        // TOGGLE THE LED DIRECTLY FROM THE GPIOA
+    //=================================================
+    //if (!device_is_ready(gpioa_dev)) {
+    //    return -ENODEV;  // Device is not ready
+    //}
+    //// Configure the led as an output, initially inactive
+    //gpio_pin_configure(gpioa_dev, 5, GPIO_OUTPUT_INACTIVE);
+    //// Toggle the led every second
+    //for (;;) {
+    //    gpio_pin_toggle(gpioa_dev, 5);
+    //    k_sleep(K_SECONDS(1));
+    //}
+
+    if (!device_is_ready(led_gpio.port)) {
+        return -ENODEV;
     }
-    // Configure the led as an output, initially inactive
-    gpio_pin_configure(gpioa_dev, 5, GPIO_OUTPUT_INACTIVE);
-    // Toggle the led every second
+    // Note that we use INACTIVE, not LOW. On some boards,
+    // the behaviour of the output may be reversed, but this
+    // is not our concern. This info belongs to the device tree.
+    gpio_pin_configure_dt(&led_gpio, GPIO_OUTPUT_INACTIVE);
     for (;;) {
-        gpio_pin_toggle(gpioa_dev, 5);
+        gpio_pin_toggle_dt(&led_gpio);
         k_sleep(K_SECONDS(1));
     }
 
