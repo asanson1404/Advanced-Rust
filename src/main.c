@@ -1,21 +1,16 @@
 #include <stdio.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/led.h>
 #include <zephyr/device.h>
 #include <zephyr/kernel.h>
 
 
 #define THREAD_STACK_SIZE   500
 #define PRIORITY            5
-#define GPIOA_NODE          DT_NODELABEL(gpioa)
-#define LED_NODE            DT_ALIAS(led0)
+#define LEDS_NODE           DT_PATH(leds)
 
-// Get the struct device pointer to gpioa at compile time
-static const struct device * const gpioa_dev = DEVICE_DT_GET(GPIOA_NODE);
-
-// Get the GPIO (port, pin and flags) corresponding to the
-// led0 node alias at compile time.
-static const struct gpio_dt_spec led_gpio = GPIO_DT_SPEC_GET(LED_NODE, gpios);
-
+// Get the struct device pointer to leds at compile time
+const struct device * const leds_node = DEVICE_DT_GET(LEDS_NODE);
 
 void my_thread() {
     printf("Hello, world\n");
@@ -39,31 +34,17 @@ int main() {
     k_thread_suspend(tid);
     //k_thread_abort(tid);
 
-    //=================================================
-        // TOGGLE THE LED DIRECTLY FROM THE GPIOA
-    //=================================================
-    //if (!device_is_ready(gpioa_dev)) {
-    //    return -ENODEV;  // Device is not ready
-    //}
-    //// Configure the led as an output, initially inactive
-    //gpio_pin_configure(gpioa_dev, 5, GPIO_OUTPUT_INACTIVE);
-    //// Toggle the led every second
-    //for (;;) {
-    //    gpio_pin_toggle(gpioa_dev, 5);
-    //    k_sleep(K_SECONDS(1));
-    //}
-
-    if (!device_is_ready(led_gpio.port)) {
+    if (!device_is_ready(leds_node)) {
         return -ENODEV;
     }
-    // Note that we use INACTIVE, not LOW. On some boards,
-    // the behaviour of the output may be reversed, but this
-    // is not our concern. This info belongs to the device tree.
-    gpio_pin_configure_dt(&led_gpio, GPIO_OUTPUT_INACTIVE);
-    for (;;) {
-        gpio_pin_toggle_dt(&led_gpio);
+    for(;;) {
+        led_on(leds_node, 0);
+        led_off(leds_node, 1);
+        k_sleep(K_SECONDS(1));
+        led_on(leds_node, 1);
+        led_off(leds_node, 0);
         k_sleep(K_SECONDS(1));
     }
 
-    return 0;
+        return 0;
 }
