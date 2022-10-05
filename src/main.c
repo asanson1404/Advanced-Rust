@@ -39,10 +39,12 @@ int main() {
     }
     for(;;) {
         led_on(leds_node, 0);
-        led_off(leds_node, 1);
-        k_sleep(K_SECONDS(1));
         led_on(leds_node, 1);
+        led_on(leds_node, 2);
+        k_sleep(K_SECONDS(1));
         led_off(leds_node, 0);
+        led_off(leds_node, 1);
+        led_off(leds_node, 2);
         k_sleep(K_SECONDS(1));
     }
 
