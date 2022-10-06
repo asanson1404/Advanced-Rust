@@ -1,8 +1,0 @@
-/ {
-        leds {
-                green_led_3: led_3 {
-                        gpios = < &gpioc 0x9 0x1 >;
-                        label = "User LD3";
-                };
-        };
-};
