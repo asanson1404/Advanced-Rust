@@ -13,6 +13,7 @@
 #include <inttypes.h>
 
 #define SLEEP_TIME_MS	1
+#define TIME_LED_ON_MS	1000
 
 /*
  * Get button configuration from the devicetree sw0 alias. This is mandatory.
@@ -35,23 +36,28 @@ static struct gpio_callback button_cb_data;
  */
 static struct gpio_dt_spec led = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led0), gpios, {0});
 
-// Fonction executed when we press the button (raising and falling edge)
+// Work queue features
+//K_THREAD_STACK_DEFINE(work_stack_area, WORK_STACK_SIZE);
+struct k_work_delayable dwork;
+
+// Fonction executed when we press the button (raising edge)
 void button_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
-	printk("Button pressed at %" PRIu32 "\n", k_cycle_get_32());
-	if (led.port) {
-		/* If we have an LED, match its state to the button's. */
-		int val = gpio_pin_get_dt(&button);
-		if (val >= 0) {
-			gpio_pin_set_dt(&led, val);
-		}
-		k_msleep(SLEEP_TIME_MS);
-	}
+	printk("I am in button_pressed\n");
+	gpio_pin_set_dt(&led, 1); // LED ON
+	k_work_reschedule(&dwork, K_MSEC(TIME_LED_ON_MS)); // Enter working item aftr 1 second
+}
+
+void working_led_behavior() {
+	printk("I am in led_behavior\n\n");
+	gpio_pin_set_dt(&led, 0); // LED OFF	
 }
 
 void main(void)
 {
 	int ret;
+
+	k_work_init_delayable(&dwork, working_led_behavior);
 
 	if (!device_is_ready(button.port)) {
 		printk("Error: button device %s is not ready\n", button.port->name);
@@ -64,8 +70,8 @@ void main(void)
 		return;
 	}
 
-	// Interruption for swp0 on both raising and fallind edge
-	ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_BOTH );
+	// Interruption for swp0 on both raising edge
+	ret = gpio_pin_interrupt_configure_dt(&button, GPIO_INT_EDGE_FALLING );
 	if (ret != 0) {
 		printk("Error %d: failed to configure interrupt on %s pin %d\n", ret, button.port->name, button.pin);
 		return;
@@ -90,5 +96,5 @@ void main(void)
 	}
 
 	printk("Press the button\n");
-	
+
 }
