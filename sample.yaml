@@ -1,8 +1,7 @@
 sample:
-  name: Button Sample
+  name: Sample for MEMS sensors VL53L0X
 tests:
-  sample.basic.button:
-    tags: button gpio
-    filter: dt_enabled_alias_with_parent_compat("sw0", "gpio-keys")
-    depends_on: gpio
-    harness: button
+  sample.sensor.vl53l0x:
+    build_only: true
+    depends_on: i2c vl53l0x
+    tags: sensors
