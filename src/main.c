@@ -5,114 +5,92 @@
  */
 
 #include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/led.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/i2c.h>
 #include <stdio.h>
 #include <zephyr/sys/printk.h>
 
-#define THREAD_STACK_SIZE 500
-#define PRIORITY 1
+#define LSM6DSL_NODE DT_NODELABEL(lsm6dsl)
 
-	
-// Preparing the messages queue
-char __aligned(4) my_msgq_buffer[1 * sizeof(struct sensor_value)];
-struct k_msgq my_msgq;
 
-// Guetting led device
-static struct gpio_dt_spec led = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led0), gpios, {0});
+static const struct i2c_dt_spec  lsm6dsl     = I2C_DT_SPEC_GET(LSM6DSL_NODE);
+static const struct gpio_dt_spec irq_lsm6dsl = GPIO_DT_SPEC_GET(LSM6DSL_NODE, irq_gpios);
 
-// Thread setting the led value
-void led_thread() {
-	struct sensor_value value;
-	double dist;
-	gpio_pin_set_dt(&led, 0);
-	while(1) {
-		k_msgq_get(&my_msgq, &value, K_NO_WAIT);
-		dist = sensor_value_to_double(&value);
+static struct gpio_callback lsm6dsl_cb_data;
+struct k_work my_work_q;
 
-		gpio_pin_toggle_dt(&led);
-		k_msleep(dist*500);
-		//printf("distance is %.3fm\n", sensor_value_to_double(&value));
-	}
+static void read_who_am_i() {
+	uint8_t reg_addr = 0x0f;
+	uint8_t reg_val;
+	i2c_reg_read_byte_dt(&lsm6dsl, reg_addr, &reg_val);
+	printk("WHO_AM_I = %x\n\n", reg_val);
 }
 
-// Preparing the thread
-K_THREAD_STACK_DEFINE(thread_stack_area, THREAD_STACK_SIZE);
-struct k_thread my_thread_data;
+void interrupt_handler(const struct device *dev, struct gpio_callback *cb, uint32_t pins) {
+	k_work_submit(&my_work_q);
+}
+
+void read_value(struct k_work *item) {
+	uint8_t addr_reg1 = 0x28;
+	int16_t data[3];
+	i2c_write_read_dt(&lsm6dsl, &addr_reg1, 1, &data, 6);
+	printk("X = %d, Y = %d, Z = %d\n", data[0], data[1], data[2]);
+}
 
 
 void main(void)
 {
-	const struct device *const dev = DEVICE_DT_GET_ONE(st_vl53l0x);
-	struct sensor_value value;
 	int ret;
 
-	k_thread_create (&my_thread_data, thread_stack_area,
-                     K_THREAD_STACK_SIZEOF(thread_stack_area),
-                     led_thread,
-                     NULL, NULL, NULL,
-                     PRIORITY, 0, K_NO_WAIT
-					);
-
+	k_work_init(&my_work_q, read_value);
 
 	//============================================================
-		// Check if the sensor is ready
+		// Check if the I2C bus is ready
 	//============================================================
-	if (dev == NULL) {
-		/* No such node, or the node does not have status "okay". */
-		printk("\nError: no device %s found.\n", dev->name);
+	if (!device_is_ready(lsm6dsl.bus)) {
+		printk("I2C bus : bus %s not ready.\n", lsm6dsl.bus->name);
 		return;
 	}
+	printk ("\nBus I2C %s is ready\n", lsm6dsl.bus->name);
 
-	if (!device_is_ready(dev)) {
-		printk("sensor : device %s not ready.\n", dev->name);
+	//============================================================
+		// Config sensor registers
+	//============================================================
+	// Reset the sensor and the register address automatically incremented 
+	// during a multiple byte access with a serial interface (I2C or SPI).
+	i2c_reg_write_byte_dt(&lsm6dsl, 0x12, (uint8_t) 0x05);
+	// XL_HM_MODE = 1 ==> high-performance operating mode disabled
+	i2c_reg_write_byte_dt(&lsm6dsl, 0x15, (uint8_t) (1 << 4));
+	// CTRL1_XL ==> the sensor performs measures at 1.6Hz 
+	i2c_reg_write_byte_dt(&lsm6dsl, 0x10, (uint8_t) (0b1011 << 4));
+	// Configure register to raise an interrupt on INT1 pad when Accelerometer Data Ready
+	i2c_reg_write_byte_dt(&lsm6dsl, 0x0d, (uint8_t) 0x1);
+	
+
+	//============================================================
+		// Config interrupt
+	//============================================================
+	// Interrupt line as an input
+	ret = gpio_pin_configure_dt(&irq_lsm6dsl, GPIO_INPUT);
+	if (ret != 0) {
+		printk("Error %d: failed to configure %s pin %d\n", ret, irq_lsm6dsl.port->name, irq_lsm6dsl.pin);
 		return;
 	}
-
-	printk ("Found device %s, getting sensor data\n", dev->name);
-
-	//============================================================
-		// Check if the LED is ready
-	//============================================================
-	if (led.port && !device_is_ready(led.port)) {
-		printk("Error : LED device %s is not ready; ignoring it\n", led.port->name);
-		led.port = NULL;
+	// Interruption when there is a raising edge on the interrupt line
+	ret = gpio_pin_interrupt_configure_dt(&irq_lsm6dsl, GPIO_INT_EDGE_TO_ACTIVE);
+	if (ret != 0) {
+		printk("Error %d: failed to configure interrupt on %s pin %d\n", ret, irq_lsm6dsl.port->name, irq_lsm6dsl.pin);
 	}
+	gpio_init_callback(&lsm6dsl_cb_data, interrupt_handler, BIT(irq_lsm6dsl.pin));
+	gpio_add_callback(irq_lsm6dsl.port, &lsm6dsl_cb_data);
 
-	if (led.port) {
-		ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT);
-		if (ret != 0) {
-			printk("Error %d: failed to configure LED device %s pin %d\n", ret, led.port->name, led.pin);
-			led.port = NULL;
-		} else {
-			printk("Set up LED at %s pin %d\n\n", led.port->name, led.pin);
-		}
-	}
 
-	// Initializing the message queue
-	k_msgq_init(&my_msgq, my_msgq_buffer, sizeof(struct sensor_value), 1);
+	printk("All devices are ready.\nStarting ....... \n\n\n");
 
-	printk("All devices are ready.\n Starting ....... \n");
 
-	// Receiving sensor's datas and sending the message 
-	while (1) {
+	read_who_am_i();
+	// Necessary to enter a first time in the interrupt
+	read_value(&my_work_q);
 
-		ret = sensor_sample_fetch(dev);
-		if (ret) {
-			printk("sensor_sample_fetch failed ret %d\n", ret);
-			return;
-		}
-
-		sensor_channel_get(dev, SENSOR_CHAN_DISTANCE, &value);
-
-		/* send data to the thread */
-		while (k_msgq_put(&my_msgq, &value, K_NO_WAIT) != 0) {
-           	/* message queue is full: purge old data & try again */
-           	k_msgq_purge(&my_msgq);
-    	}
-
-		k_sleep(K_MSEC(100));
-	}
 }
