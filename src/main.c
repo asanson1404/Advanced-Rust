@@ -24,6 +24,8 @@ struct k_work   my_work_q;
 struct k_timer  print_timer;
 struct k_mutex 	mutex;
 
+//int64_t last_time = k_uptime_get();
+
 typedef struct {
 	int16_t			x;
 	int16_t			y;
@@ -77,62 +79,35 @@ static void read_value(struct k_work *item) {
 	}
 
 	k_mutex_unlock(&mutex);
-
-	/*for(;;) {
-		int renv = i2c_reg_read_byte_dt(&lsm6dsl, status_reg_addr, &status);
-		
-		if((status & 0x03) == 0x00){
-			break;
-		}
-		if((status & 0x01) == 0x01) {
-			uint8_t addr_reg1_xl = 0x28;
-			float acc_tot;
-
-			i2c_write_read_dt(&lsm6dsl, &addr_reg1_xl, 1, &data_xl, 6);
-			//printk("ACC  ===>  X = %d, Y = %d, Z = %d\n", data_xl[0], data_xl[1], data_xl[2]);
-
-			// valeur totale de l'accélération, peu importe l'orientation
-			acc_tot = sqrt(data_xl[0]*data_xl[0] + data_xl[1]*data_xl[1] + data_xl[2]*data_xl[2]);
-
-			// calcul des angles et conversion en degrés
-			float angleX = asinf(data_xl[0]/acc_tot) * 180.0/PI;
-			float angleY = asinf(data_xl[1]/acc_tot) * 180.0/PI;
-			float angleZ = acosf(data_xl[2]/acc_tot) * 180.0/PI;
-
-			printk("ACC  ===>  ANGLE_X = %.2f, ANGLE_Y = %.2f, ANGLE_Z = %.2f\n", angleX, angleY, angleZ);
-		}
-		if((status & 0x02) == 0x02) {
-			uint8_t addr_reg1_g = 0x22;
-
-			i2c_write_read_dt(&lsm6dsl, &addr_reg1_g, 1, &data_g, 6);
-			printk("GYR  ===>  X = %d, Y = %d, Z = %d\n", data_g[0], data_g[1], data_g[2]);
-		}
-	}
-	printk("end\n");*/
 }
 
 
 static void compute_and_print(struct k_timer *timer)
 {
-	//printk("I AM IN THE TIMER \n");
-
 	float acc_tot;
 
+	// Données brutes acc
 	//printk("ACC  ===>  X = %d, Y = %d, Z = %d\n", imu_data.accel.x, imu_data.accel.y, imu_data.accel.z);
 
 	// valeur totale de l'accélération, peu importe l'orientation
 	acc_tot = sqrt(imu_data.accel.x*imu_data.accel.x + imu_data.accel.y*imu_data.accel.y + imu_data.accel.z*imu_data.accel.z);
 
 	// calcul des angles et conversion en degrés
-	float angleX = asinf(imu_data.accel.x/acc_tot) * 180.0/PI;
-	float angleY = asinf(imu_data.accel.y/acc_tot) * 180.0/PI;
-	float angleZ = acosf(imu_data.accel.z/acc_tot) * 180.0/PI;
+	float angleX_xl = asinf(imu_data.accel.x/acc_tot) * 180.0/PI;
+	float angleY_xl = asinf(imu_data.accel.y/acc_tot) * 180.0/PI;
+	float angleZ_xl = acosf(imu_data.accel.z/acc_tot) * 180.0/PI;
 
-	printk("ACC  ===>  ANGLE_X = %.2f, ANGLE_Y = %.2f, ANGLE_Z = %.2f\n", angleX, angleY, angleZ);
+	//printk("ACC  ===>  ANGLE_X = %.2f, ANGLE_Y = %.2f, ANGLE_Z = %.2f\n", angleX_xl, angleY_xl, angleZ_xl);
 
-	printk("GYR  ===>  X = %d, Y = %d, Z = %d\n", imu_data.gyro.x, imu_data.gyro.y, imu_data.gyro.z);
+	// données brutes gyro
+	//printk("GYR  ===>  X = %d, Y = %d, Z = %d\n", imu_data.gyro.x, imu_data.gyro.y, imu_data.gyro.z);
 
+	// calcul des angles
+	float angleX_g = imu_data.gyro.y * (1.0 / 104.0);
+	float angleY_g = imu_data.gyro.x * (1.0 / 104.0);
+	float angleZ_g = imu_data.gyro.y * (1.0 / 104.0);
 
+	printk("GYR  ===>  ANGLE_X = %.2f, ANGLE_Y = %.2f, ANGLE_Z = %.2f\n", angleX_g, angleY_g, angleZ_g);
 }
 
 
@@ -201,7 +176,7 @@ void main(void)
 	read_value(&my_work_q);
 
 	// We print values every 10ms (100Hz)
-	k_timer_start(&print_timer, K_SECONDS(1), K_MSEC(100));
+	k_timer_start(&print_timer, K_SECONDS(1), K_MSEC(10));
 
 
 }
