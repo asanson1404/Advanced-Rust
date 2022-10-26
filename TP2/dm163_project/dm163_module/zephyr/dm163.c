@@ -8,7 +8,16 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
+#define NUM_LEDS 8
+#define NUM_CHANNELS (NUM_LEDS * 3)
+
+
 LOG_MODULE_REGISTER(dm163, LOG_LEVEL_DBG);
+
+struct dm163_data {
+  uint8_t brightness[NUM_CHANNELS];
+  uint8_t channels[NUM_CHANNELS];
+};
 
 struct dm163_config {
   const struct gpio_dt_spec en;
@@ -18,6 +27,11 @@ struct dm163_config {
   const struct gpio_dt_spec selbk;
   const struct gpio_dt_spec sin;
 };
+
+static void pulse_data(const struct dm163_config *config, uint8_t data, int bits);
+static void flush_channels(const struct device *dev);
+static void flush_brightness(const struct device *dev);
+
 
 #define CONFIGURE_PIN(dt, flags)                                               \
   do {                                                                         \
@@ -30,6 +44,7 @@ struct dm163_config {
 
 static int dm163_init(const struct device *dev) {
   const struct dm163_config *config = dev->config;
+  struct dm163_data *data = dev->data;
   
   LOG_DBG("starting initialization of device %s", dev->name);
 
@@ -49,6 +64,12 @@ static int dm163_init(const struct device *dev) {
   k_usleep(1); // 100ns min
   // Cancel reset by making it inactive.
   gpio_pin_set_dt(&config->rst, 0);
+
+  memset(&data->brightness, 0x3f, sizeof(data->brightness));
+  memset(&data->channels, 0x00, sizeof(data->channels));
+  flush_brightness(dev);
+  flush_channels(dev);
+
   // Enable the outputs if this pin is connected.
   if (config->en.port) {
     gpio_pin_set_dt(&config->en, 1);
@@ -71,9 +92,50 @@ static int dm163_init(const struct device *dev) {
       .sin = GPIO_DT_SPEC_GET(DT_DRV_INST(i), sin_gpios),                      \
   };                                                                           \
                                                                                \
-  DEVICE_DT_INST_DEFINE(i, &dm163_init, NULL, NULL, &dm163_config_##i,         \
-                        POST_KERNEL, CONFIG_LED_INIT_PRIORITY, NULL);
+  /* Build a new dm163_data_/i/ structure for dynamic data                  */ \
+  static struct dm163_data dm163_data_##i = {};                                \
+                                                                               \
+  DEVICE_DT_INST_DEFINE(i, &dm163_init, NULL, &dm163_data_##i,                 \
+                        &dm163_config_##i, POST_KERNEL,                        \
+                        CONFIG_LED_INIT_PRIORITY, NULL);
 
 // Apply the DM163_DEVICE to all DM163 peripherals not marked "disabled"
 // in the device tree and pass it the corresponding index.
 DT_INST_FOREACH_STATUS_OKAY(DM163_DEVICE)
+
+
+static void pulse_data(const struct dm163_config *config, uint8_t data, int bits) {
+  for (int i = bits - 1; i >=0 ; i--) {
+    gpio_pin_set_dt(&config->sin, (data>>i)&0x1);
+    gpio_pin_set_dt(&config->gck, 1);
+    gpio_pin_set_dt(&config->gck, 0);
+  }
+}
+
+
+static void flush_channels(const struct device *dev) {
+  const struct dm163_config *config = dev->config;
+  struct dm163_data *data = dev->data;
+
+  for (int i = NUM_CHANNELS - 1; i >= 0; i--)
+    pulse_data(config, data->channels[i], 8);
+  gpio_pin_set_dt(&config->lat, 1);
+  gpio_pin_set_dt(&config->lat, 0);
+}
+
+
+static void flush_brightness(const struct device *dev) {
+  const struct dm163_config *config = dev->config;
+  struct dm163_data *data = dev->data;
+
+  gpio_pin_set_dt(&config->selbk, 0);
+
+  for (int i = NUM_CHANNELS - 1; i >= 0; i--)
+    pulse_data(config, data->brightness[i], 8);
+  gpio_pin_set_dt(&config->lat, 1);
+  gpio_pin_set_dt(&config->lat, 0);
+
+  gpio_pin_set_dt(&config->selbk, 1);
+}
+
+
