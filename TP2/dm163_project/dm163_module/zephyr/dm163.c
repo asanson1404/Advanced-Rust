@@ -32,6 +32,8 @@ static void pulse_data(const struct dm163_config *config, uint8_t data, int bits
 static void flush_channels(const struct device *dev);
 static void flush_brightness(const struct device *dev);
 static int dm163_set_brightness(const struct device *dev, uint32_t led, uint8_t value);
+static int dm163_on(const struct device *dev, uint32_t led);
+static int dm163_off(const struct device *dev, uint32_t led);
 
 
 #define CONFIGURE_PIN(dt, flags)                                               \
@@ -67,11 +69,14 @@ static int dm163_init(const struct device *dev) {
   gpio_pin_set_dt(&config->rst, 0);
 
   memset(&data->brightness, 0x3f, sizeof(data->brightness));
-  memset(&data->channels, 0xff, sizeof(data->channels));
+  memset(&data->channels, 0x00, sizeof(data->channels));
   flush_brightness(dev);
   flush_channels(dev);
 
-  dm163_set_brightness(dev, 7, 50);
+  dm163_on(dev, 0);
+  dm163_on(dev, 7);
+  dm163_set_brightness(dev, 0, 10);
+  dm163_off(dev, 7);
 
   // Enable the outputs if this pin is connected.
   if (config->en.port) {
@@ -143,14 +148,13 @@ static void flush_brightness(const struct device *dev) {
 
 
 static int dm163_set_brightness(const struct device *dev, uint32_t led, uint8_t value) {
-  //const struct dm163_config *config = dev->config;
   struct dm163_data *data = dev->data;
 
   if(value <= 100) {
 
     // Convert value into [0-63] interval
     uint8_t val = ((uint32_t) value * 63) / 100;
-    // Find the corresponding channels of led
+
     uint8_t num_channel = led * 3;
 
     data->brightness[num_channel]   = val;
@@ -161,10 +165,44 @@ static int dm163_set_brightness(const struct device *dev, uint32_t led, uint8_t 
 
     return 0;
   }
-  else {
+  else
     return -EINVAL;
-  }
 }
 
 
+static int dm163_on(const struct device *dev, uint32_t led) {
+  struct dm163_data *data = dev->data;
 
+  if (led < 8) {
+    uint8_t num_channel = led * 3;
+
+    data->channels[num_channel]   = 0xff;
+    data->channels[num_channel+1] = 0xff;
+    data->channels[num_channel+2] = 0xff;
+
+    flush_channels(dev);
+
+    return 0;
+  }
+  else
+    return -EINVAL;
+}
+
+
+static int dm163_off(const struct device *dev, uint32_t led) {
+  struct dm163_data *data = dev->data;
+
+  if (led < 8) {
+    uint8_t num_channel = led * 3;
+
+    data->channels[num_channel]   = 0x00;
+    data->channels[num_channel+1] = 0x00;
+    data->channels[num_channel+2] = 0x00;
+
+    flush_channels(dev);
+
+    return 0;
+  }
+  else
+    return -EINVAL;
+}
