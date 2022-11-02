@@ -31,6 +31,7 @@ struct dm163_config {
 static void pulse_data(const struct dm163_config *config, uint8_t data, int bits);
 static void flush_channels(const struct device *dev);
 static void flush_brightness(const struct device *dev);
+static int dm163_set_brightness(const struct device *dev, uint32_t led, uint8_t value);
 
 
 #define CONFIGURE_PIN(dt, flags)                                               \
@@ -66,9 +67,11 @@ static int dm163_init(const struct device *dev) {
   gpio_pin_set_dt(&config->rst, 0);
 
   memset(&data->brightness, 0x3f, sizeof(data->brightness));
-  memset(&data->channels, 0x00, sizeof(data->channels));
+  memset(&data->channels, 0xff, sizeof(data->channels));
   flush_brightness(dev);
   flush_channels(dev);
+
+  dm163_set_brightness(dev, 7, 50);
 
   // Enable the outputs if this pin is connected.
   if (config->en.port) {
@@ -131,11 +134,37 @@ static void flush_brightness(const struct device *dev) {
   gpio_pin_set_dt(&config->selbk, 0);
 
   for (int i = NUM_CHANNELS - 1; i >= 0; i--)
-    pulse_data(config, data->brightness[i], 8);
+    pulse_data(config, data->brightness[i], 6);
   gpio_pin_set_dt(&config->lat, 1);
   gpio_pin_set_dt(&config->lat, 0);
 
   gpio_pin_set_dt(&config->selbk, 1);
 }
+
+
+static int dm163_set_brightness(const struct device *dev, uint32_t led, uint8_t value) {
+  //const struct dm163_config *config = dev->config;
+  struct dm163_data *data = dev->data;
+
+  if(value <= 100) {
+
+    // Convert value into [0-63] interval
+    uint8_t val = ((uint32_t) value * 63) / 100;
+    // Find the corresponding channels of led
+    uint8_t num_channel = led * 3;
+
+    data->brightness[num_channel]   = val;
+    data->brightness[num_channel+1] = val;
+    data->brightness[num_channel+2] = val;
+
+    flush_brightness(dev);
+
+    return 0;
+  }
+  else {
+    return -EINVAL;
+  }
+}
+
 
 
