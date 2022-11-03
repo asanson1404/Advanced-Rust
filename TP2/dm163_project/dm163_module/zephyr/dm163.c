@@ -86,6 +86,12 @@ static int dm163_init(const struct device *dev) {
   return 0;
 }
 
+static const struct led_driver_api dm163_api = {
+    .on = dm163_on,
+    .off = dm163_off,
+    .set_brightness = dm163_set_brightness,
+};
+
 // Macro to initialize the DM163 peripheral with index i
 #define DM163_DEVICE(i)                                                        \
                                                                                \
@@ -105,7 +111,7 @@ static int dm163_init(const struct device *dev) {
                                                                                \
   DEVICE_DT_INST_DEFINE(i, &dm163_init, NULL, &dm163_data_##i,                 \
                         &dm163_config_##i, POST_KERNEL,                        \
-                        CONFIG_LED_INIT_PRIORITY, NULL);
+                        CONFIG_LED_INIT_PRIORITY, &dm163_api);
 
 // Apply the DM163_DEVICE to all DM163 peripherals not marked "disabled"
 // in the device tree and pass it the corresponding index.
