@@ -14,7 +14,7 @@
 
 #define LSM6DSL_NODE DT_NODELABEL(lsm6dsl)
 #define PI 3.14158
-
+#define GYRO_SPEED 1.0/104.0
 
 static const struct i2c_dt_spec  lsm6dsl     = I2C_DT_SPEC_GET(LSM6DSL_NODE);
 static const struct gpio_dt_spec irq_lsm6dsl = GPIO_DT_SPEC_GET(LSM6DSL_NODE, irq_gpios);
@@ -23,8 +23,6 @@ static struct gpio_callback lsm6dsl_cb_data;
 struct k_work   my_work_q;
 struct k_timer  print_timer;
 struct k_mutex 	mutex;
-
-//int64_t last_time = k_uptime_get();
 
 typedef struct {
 	int16_t			x;
@@ -81,33 +79,35 @@ static void read_value(struct k_work *item) {
 	k_mutex_unlock(&mutex);
 }
 
-
+// We assume that at the beginning, the board is flat on the table
+// angle Z has no sense here
+float angleX_g = 0;
+float angleY_g = 0;
 static void compute_and_print(struct k_timer *timer)
 {
-	float acc_tot;
-
 	// Données brutes acc
 	//printk("ACC  ===>  X = %d, Y = %d, Z = %d\n", imu_data.accel.x, imu_data.accel.y, imu_data.accel.z);
 
 	// valeur totale de l'accélération, peu importe l'orientation
-	acc_tot = sqrt(imu_data.accel.x*imu_data.accel.x + imu_data.accel.y*imu_data.accel.y + imu_data.accel.z*imu_data.accel.z);
+	float acc_tot = sqrt(imu_data.accel.x*imu_data.accel.x + imu_data.accel.y*imu_data.accel.y + imu_data.accel.z*imu_data.accel.z);
 
 	// calcul des angles et conversion en degrés
 	float angleX_xl = asinf(imu_data.accel.x/acc_tot) * 180.0/PI;
 	float angleY_xl = asinf(imu_data.accel.y/acc_tot) * 180.0/PI;
 	float angleZ_xl = acosf(imu_data.accel.z/acc_tot) * 180.0/PI;
 
+	// Données converties en angle de l'acc
 	//printk("ACC  ===>  ANGLE_X = %.2f, ANGLE_Y = %.2f, ANGLE_Z = %.2f\n", angleX_xl, angleY_xl, angleZ_xl);
+
+	// On converti les données brutes du gyro en dsp et on en déduit l'angle d'inclinaison (fréquence du gyro 104Hz)
+	angleX_g = angleX_g + imu_data.gyro.y * 250.0/(1<<15) * GYRO_SPEED; 
+	angleY_g = angleY_g + imu_data.gyro.x * 250.0/(1<<15) * GYRO_SPEED;
 
 	// données brutes gyro
 	//printk("GYR  ===>  X = %d, Y = %d, Z = %d\n", imu_data.gyro.x, imu_data.gyro.y, imu_data.gyro.z);
 
-	// calcul des angles
-	float angleX_g = imu_data.gyro.y * (1.0 / 104.0);
-	float angleY_g = imu_data.gyro.x * (1.0 / 104.0);
-	float angleZ_g = imu_data.gyro.y * (1.0 / 104.0);
-
-	printk("GYR  ===>  ANGLE_X = %.2f, ANGLE_Y = %.2f, ANGLE_Z = %.2f\n", angleX_g, angleY_g, angleZ_g);
+	// Données converties en angle du gyro
+	printk("GYR  ===>  ANGLE_X = %.2f, ANGLE_Y = %.2f\n", angleX_g, angleY_g);
 }
 
 
@@ -170,13 +170,10 @@ void main(void)
 
 	printk("All devices are ready.\nStarting ....... \n\n\n");
 
-
 	read_who_am_i();
 	// Necessary to enter a first time in the interrupt
 	read_value(&my_work_q);
 
 	// We print values every 10ms (100Hz)
 	k_timer_start(&print_timer, K_SECONDS(1), K_MSEC(10));
-
-
 }
