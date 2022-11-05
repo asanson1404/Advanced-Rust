@@ -24,9 +24,12 @@ static const struct gpio_dt_spec irq_lsm6dsl = GPIO_DT_SPEC_GET(LSM6DSL_NODE, ir
 static struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led0), gpios, {0});
 static struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET_OR(DT_ALIAS(led1), gpios, {0});
 
-// Define the thread stack area
-K_THREAD_STACK_DEFINE(leds_thread_stack_area, THREAD_STACK_SIZE);
-struct k_thread my_thread_data;
+// Define the thread_x stack area
+K_THREAD_STACK_DEFINE(thread_x_stack_area, THREAD_STACK_SIZE);
+struct k_thread thread_x;
+// Define the thread_x stack area
+K_THREAD_STACK_DEFINE(thread_y_stack_area, THREAD_STACK_SIZE);
+struct k_thread thread_y;
 
 // Preparing the messages queue
 struct msg_queue_type {
@@ -146,23 +149,37 @@ static void compute_and_print(struct k_timer *timer)
 
 }
 
-// Thread to let the leds blink according to the tilt
-// One led for X axis and one led for Y axis
+// Threads to let the leds blink according to the tilt
+// One thread for X axis and one thread for Y axis
 // When the board is flat, leds are steady
 // Leds blinks very fast when the tilt angle is 90°
-void leds_thread() {
+void led_thread_x() {
 	struct msg_queue_type tilt_data;
-	float tilt_x, tilt_y;
+	float wait_x;
 	gpio_pin_set_dt(&led0, 1);
+    while(1){
+		k_msgq_get(&msgq, &tilt_data, K_NO_WAIT);
+		// Temps d'attente du clignottement se comporte comme une exp décroissante
+		// Angle de 90° --> attente de seulement 27ms
+		// Angle de 0°  --> attente de 1s
+		wait_x = 1000.0 * expf(-0.04 * fabs(tilt_data.tilt_x));
+		gpio_pin_toggle_dt(&led0);
+        k_msleep(wait_x);
+	}
+}
+
+void led_thread_y() {
+	struct msg_queue_type tilt_data;
+	float wait_y;
 	gpio_pin_set_dt(&led1, 1);
     while(1){
 		k_msgq_get(&msgq, &tilt_data, K_NO_WAIT);
-		tilt_x = tilt_data.tilt_x;
-		tilt_y = tilt_data.tilt_y;
-		printk("%.2f   %.2f\n", tilt_x, tilt_y);
-		gpio_pin_toggle_dt(&led0);
+		// Temps d'attente du clignottement se comporte comme une exp décroissante
+		// Angle de 90° --> attente de seulement 27ms
+		// Angle de 0°  --> attente de 1s
+		wait_y = 1000.0 * expf(-0.04 * fabs(tilt_data.tilt_y));
 		gpio_pin_toggle_dt(&led1);
-        k_sleep(K_SECONDS(1));
+        k_msleep(wait_y);
 	}
 }
 
@@ -261,10 +278,16 @@ void main(void)
 	// Initializing the message queue
 	k_msgq_init(&msgq, msgq_buffer, sizeof(struct msg_queue_type), 1);
 
-	// Creating thread to manage the leds blinking
-	k_thread_create (&my_thread_data, leds_thread_stack_area,
-                     K_THREAD_STACK_SIZEOF(leds_thread_stack_area),
-                     leds_thread,
+	// Creating threads to manage the leds blinking
+	k_thread_create (&thread_x, thread_x_stack_area,
+                     K_THREAD_STACK_SIZEOF(thread_x_stack_area),
+                     led_thread_x,
+                     NULL, NULL, NULL,
+                     PRIORITY, 0, K_NO_WAIT);
+
+	k_thread_create (&thread_y, thread_y_stack_area,
+                     K_THREAD_STACK_SIZEOF(thread_y_stack_area),
+                     led_thread_y,
                      NULL, NULL, NULL,
                      PRIORITY, 0, K_NO_WAIT);
 
