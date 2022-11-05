@@ -107,7 +107,18 @@ static void compute_and_print(struct k_timer *timer)
 	//printk("GYR  ===>  X = %d, Y = %d, Z = %d\n", imu_data.gyro.x, imu_data.gyro.y, imu_data.gyro.z);
 
 	// Données converties en angle du gyro
-	printk("GYR  ===>  ANGLE_X = %.2f, ANGLE_Y = %.2f\n", angleX_g, angleY_g);
+	//printk("GYR  ===>  ANGLE_X = %.2f, ANGLE_Y = %.2f\n", angleX_g, angleY_g);
+
+	// Filtre complémentaire
+	float angleX_filter = 0.95 * angleX_xl + 0.05 * angleX_g;
+	float angleY_filter = 0.95 * angleY_xl + 0.05 * angleY_g;
+
+	// Angle X pour les 3 méthode de calcul "ACC GYR FILTRE"
+	printk("%.2f   %.2f   %.2f\n", angleX_xl, angleX_g, angleX_filter);
+
+	// Angle Y pour les 3 méthode de calcul "ACC GYR FILTRE"
+	//printk("%.2f   %.2f   %.2f\n", angleY_xl, angleY_g, angleY_filter);
+
 }
 
 
