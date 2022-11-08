@@ -7,6 +7,7 @@
 #include <zephyr/drivers/led.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <string.h>
 
 #define NUM_LEDS 8
 #define NUM_CHANNELS (NUM_LEDS * 3)
@@ -34,6 +35,8 @@ static void flush_brightness(const struct device *dev);
 static int dm163_set_brightness(const struct device *dev, uint32_t led, uint8_t value);
 static int dm163_on(const struct device *dev, uint32_t led);
 static int dm163_off(const struct device *dev, uint32_t led);
+static int dm163_set_color(const struct device *dev, uint32_t led, uint8_t num_colors, const uint8_t *color);
+static int dm163_write_channels(const struct device *dev, uint32_t start_channel, uint32_t num_channels, const uint8_t *buf);
 
 
 #define CONFIGURE_PIN(dt, flags)                                               \
@@ -73,10 +76,10 @@ static int dm163_init(const struct device *dev) {
   flush_brightness(dev);
   flush_channels(dev);
 
-  dm163_on(dev, 0);
-  dm163_on(dev, 7);
-  dm163_set_brightness(dev, 0, 10);
-  dm163_off(dev, 7);
+  //dm163_on(dev, 0);
+  //dm163_on(dev, 7);
+  //dm163_set_brightness(dev, 0, 10);
+  //dm163_off(dev, 7);
 
   // Enable the outputs if this pin is connected.
   if (config->en.port) {
@@ -90,6 +93,8 @@ static const struct led_driver_api dm163_api = {
     .on = dm163_on,
     .off = dm163_off,
     .set_brightness = dm163_set_brightness,
+    .set_color = dm163_set_color,
+    .write_channels = dm163_write_channels,
 };
 
 // Macro to initialize the DM163 peripheral with index i
@@ -212,3 +217,53 @@ static int dm163_off(const struct device *dev, uint32_t led) {
   else
     return -EINVAL;
 }
+
+static int dm163_set_color(const struct device *dev, uint32_t led, uint8_t num_colors, const uint8_t *color) {
+  struct dm163_data *data = dev->data;
+
+  if (led < 8) {
+    uint8_t num_channel = led * 3;
+
+    if (num_colors == 3) {
+      data->channels[num_channel]   = color[0];
+      data->channels[num_channel+1] = color[1];
+      data->channels[num_channel+2] = color[2]; 
+    }
+    else if (num_colors == 2) {
+      data->channels[num_channel]   = color[0];
+      data->channels[num_channel+1] = color[1];
+      data->channels[num_channel+2] = 0x00;
+    }
+    else if (num_colors == 1) {
+      data->channels[num_channel]   = color[0];
+      data->channels[num_channel+1] = 0x00;
+      data->channels[num_channel+2] = 0x00;
+    }
+    else {
+      return -EINVAL;
+    }
+
+    flush_channels(dev);   
+
+    return 0;
+  }
+  else
+    return -EINVAL;
+}
+
+static int dm163_write_channels(const struct device *dev, uint32_t start_channel, uint32_t num_channels, const uint8_t *buf) {
+  
+  struct dm163_data *data = dev->data;
+  uint32_t max_channel = start_channel + num_channels;
+
+  if(max_channel <= NUM_CHANNELS) {
+    memcpy(&data->channels[start_channel], buf, num_channels);
+    flush_channels(dev);
+
+    return 0;
+  }
+  else
+    return -EINVAL;
+}
+
+
