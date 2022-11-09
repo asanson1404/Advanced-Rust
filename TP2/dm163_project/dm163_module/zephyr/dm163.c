@@ -9,8 +9,8 @@
 #include <zephyr/logging/log.h>
 #include <string.h>
 
-#define NUM_LEDS 8
-#define NUM_CHANNELS (NUM_LEDS * 3)
+#define NUM_LEDS            8
+#define NUM_CHANNELS        (NUM_LEDS * 3)
 
 
 LOG_MODULE_REGISTER(dm163, LOG_LEVEL_DBG);
@@ -18,6 +18,7 @@ LOG_MODULE_REGISTER(dm163, LOG_LEVEL_DBG);
 struct dm163_data {
   uint8_t brightness[NUM_CHANNELS];
   uint8_t channels[NUM_CHANNELS];
+  struct k_mutex mutex;
 };
 
 struct dm163_config {
@@ -51,6 +52,8 @@ static int dm163_write_channels(const struct device *dev, uint32_t start_channel
 static int dm163_init(const struct device *dev) {
   const struct dm163_config *config = dev->config;
   struct dm163_data *data = dev->data;
+
+  k_mutex_init(&data->mutex);
   
   LOG_DBG("starting initialization of device %s", dev->name);
 
@@ -75,11 +78,6 @@ static int dm163_init(const struct device *dev) {
   memset(&data->channels, 0x00, sizeof(data->channels));
   flush_brightness(dev);
   flush_channels(dev);
-
-  //dm163_on(dev, 0);
-  //dm163_on(dev, 7);
-  //dm163_set_brightness(dev, 0, 10);
-  //dm163_off(dev, 7);
 
   // Enable the outputs if this pin is connected.
   if (config->en.port) {
@@ -136,8 +134,13 @@ static void flush_channels(const struct device *dev) {
   const struct dm163_config *config = dev->config;
   struct dm163_data *data = dev->data;
 
+  k_mutex_lock(&data->mutex, K_FOREVER);
+
   for (int i = NUM_CHANNELS - 1; i >= 0; i--)
     pulse_data(config, data->channels[i], 8);
+
+  k_mutex_unlock(&data->mutex);
+  
   gpio_pin_set_dt(&config->lat, 1);
   gpio_pin_set_dt(&config->lat, 0);
 }
@@ -149,8 +152,13 @@ static void flush_brightness(const struct device *dev) {
 
   gpio_pin_set_dt(&config->selbk, 0);
 
+  k_mutex_lock(&data->mutex, K_FOREVER);
+
   for (int i = NUM_CHANNELS - 1; i >= 0; i--)
     pulse_data(config, data->brightness[i], 6);
+
+  k_mutex_unlock(&data->mutex);
+  
   gpio_pin_set_dt(&config->lat, 1);
   gpio_pin_set_dt(&config->lat, 0);
 
