@@ -45,24 +45,16 @@ int main()
   }
 
   // Fill my_im struct (corresponds to the image to print)
-  for(int i=0; i < NUM_CHANNELS; i++) {
-
-    // Affiche un dégradé de white
-    my_im.channels[i] = i;
-
-    // Affiche du rouge (attention aux bornes)
-    //my_im.channels[3 * i] = 255;
-
-    // Affiche du jaune (attentions aux bornes)
-    //my_im.channels[3 * i] = 255;
-    //my_im.channels[(3 * i) + 1] = 255;
+  for(int i=0; i < NUM_CHANNELS/2; i++) {
+    // Image de rayures verticales de magenta et de vert
+    my_im.channels[2 * i] = 255;
   }
 
   for (int row = 0; row < 8; row++)
     gpio_pin_configure_dt(&rows[row], GPIO_OUTPUT_INACTIVE);
   // Set brightness for all leds
   for (int i = 0; i < 8; i++)
-    led_set_brightness(dm163_dev, i, 100);
+    led_set_brightness(dm163_dev, i, 20);
 
   k_sem_init(&image_sem, 0, 1);
   k_timer_init(&my_timer, update_image, NULL);
@@ -80,7 +72,6 @@ int main()
       }
       led_write_channels(dm163_dev, 0, 3*8, &my_im.channels[3 * 8 * row]);
       gpio_pin_set_dt(&rows[row], 1);
-      //k_sleep(K_NSEC(1000000));
     }
   }
 
