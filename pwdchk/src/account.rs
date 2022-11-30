@@ -1,6 +1,8 @@
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::vec;
+use std::fmt::Display;
+use std::error::Error;
 
 #[derive(Debug)]
 pub struct Account {
@@ -40,5 +42,15 @@ impl FromStr for Account {
       }
       Err(NoColon)
     }
+}
+
+impl Display for NoColon {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "Error message")
+  }
+}
+
+impl Error for NoColon {
+
 }
   
