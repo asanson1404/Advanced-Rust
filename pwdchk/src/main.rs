@@ -20,8 +20,9 @@ fn main() -> Result<(), NoColon> {
     //println!("{:#?}", Account::from_str("johndoe")?);
     //Ok(())
 
-    let v: Vec<Result<_, _>> = env::args().map(|c| Account::from_str(c.as_str())).collect();
-    let accounts = &v[1..];
+    let v: Result<Vec<_>, _> = env::args().skip(1).map(|c| Account::from_str(c.as_str())).collect();
+    let accounts = v?;
+
     println!("{accounts:#?}");
     Ok(())
     
