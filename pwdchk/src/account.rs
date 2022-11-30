@@ -1,9 +1,11 @@
 use std::str::FromStr;
+use std::collections::HashMap;
+use std::vec;
 
 #[derive(Debug)]
 pub struct Account {
-    pub login:    String, 
-    pub password:  String,
+    login:    String, 
+    password:  String,
 }
 #[derive(Debug)]
 pub struct NoColon;
@@ -13,6 +15,18 @@ impl Account {
   pub fn new(login: &str, password: &str) -> Self {
     Account {login: login.to_string(), password: password.to_string()}
   }
+
+  pub fn group(accounts: Vec<Account>) -> HashMap<String, Vec<String>> {
+    let mut map: HashMap<String, Vec<String>> = HashMap::new();
+    for account in accounts {
+      let login = account.login.clone();
+      map.entry(account.password)
+        .and_modify(|v| v.push(account.login))
+        .or_insert_with(|| vec![login]);
+    }
+    map
+  }
+  
 
 }
 

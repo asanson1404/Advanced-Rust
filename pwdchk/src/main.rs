@@ -20,10 +20,25 @@ fn main() -> Result<(), NoColon> {
     //println!("{:#?}", Account::from_str("johndoe")?);
     //Ok(())
 
+    //let v: Result<Vec<_>, _> = env::args().skip(1).map(|c| Account::from_str(c.as_str())).collect();
+    //let accounts = v?;
+
+    //println!("{accounts:#?}");
+    //Ok(())
+
+    // PARTIE 2.4
     let v: Result<Vec<_>, _> = env::args().skip(1).map(|c| Account::from_str(c.as_str())).collect();
     let accounts = v?;
 
-    println!("{accounts:#?}");
+    let mut my_hash_map = Account::group(accounts); 
+    my_hash_map.retain(|_, v| v.len() > 1);
+
+    //println!("{my_hash_map:#?}");
+
+    for same_pwd_account in my_hash_map {
+        println!("Password {} used by {}", same_pwd_account.0, same_pwd_account.1.join(", "));
+    } 
+
     Ok(())
     
 }
