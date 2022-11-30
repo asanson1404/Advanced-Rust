@@ -1,1 +1,6 @@
+<<<<<<< HEAD
 /target
+=======
+build/
+.vscode/
+>>>>>>> f39cd8df33399ff15866f4e1e151439a32c17690
