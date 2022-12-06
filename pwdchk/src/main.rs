@@ -49,7 +49,7 @@ fn main() -> Result<(), error::Error> {
                 None             => {
                     // Grouper les comptes collectés dans args.account, les filtrer, afficher
                     // ceux ayant plus d'un login en réutilisant le code écrit précédemment.
-                    let mut my_hash_map = Account::group(args.account); 
+                    let mut my_hash_map = Account::group(&args.account); 
                     my_hash_map.retain(|_, v| v.len() > 1);
 
                     for same_pwd_account in my_hash_map {

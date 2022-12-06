@@ -21,13 +21,12 @@ impl Account {
     Account {login: login.to_string(), password: password.to_string()}
   }
 
-  pub fn group(accounts: Vec<Account>) -> HashMap<String, Vec<String>> {
-    let mut map: HashMap<String, Vec<String>> = HashMap::new();
+  pub fn group<'a>(accounts: &'a [Account]) -> HashMap<&'a str, Vec<&'a str>> {
+    let mut map: HashMap<&'a str, Vec<&'a str>> = HashMap::new();
     for account in accounts {
-      let login = account.login.clone();
-      map.entry(account.password)
-        .and_modify(|v| v.push(account.login))
-        .or_insert_with(|| vec![login]);
+      map.entry(account.password.as_str())
+        .and_modify(|v| v.push(account.login.as_str()))
+        .or_insert_with(|| vec![account.login.as_str()]);
     }
     map
   }

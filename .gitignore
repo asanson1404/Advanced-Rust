@@ -1,3 +1,4 @@
 pwdchk/target/*
 build/
 .vscode/
+*.txt
