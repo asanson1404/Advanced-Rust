@@ -3,6 +3,7 @@ mod account;
 use account::*;
 use std::path::PathBuf;
 mod error;
+mod hibp;
 
 #[derive(Parser)]
 #[clap(version, author, about)]

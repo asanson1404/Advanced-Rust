@@ -11,8 +11,8 @@ use std::error::Error;
 
 #[derive(Debug)]
 pub struct Account {
-    login:    String, 
-    password:  String,
+    pub login:    String, 
+    pub password:  String,
 }
 
 impl Account {
