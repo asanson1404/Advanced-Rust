@@ -1,5 +1,6 @@
 use crate::account::*;
 use sha1::{Sha1, Digest};
+use rayon::prelude::*;
 
 fn sha1(account: &Account) -> (String, String) {
 
@@ -19,4 +20,19 @@ fn sha1(account: &Account) -> (String, String) {
 
     (prefix, suffix)
 }
+
+fn all_sha1(accounts: &[Account]) -> Vec<(String, String, &Account)> {
+
+    // parallele iterator : add prefexix, suffix, and ref_account of each accounts to the vector ret
+    let ret: Vec::<(String, String, &Account)> = 
+        accounts.par_iter()
+        .map(|i| {
+            let pref_suf = sha1(i);
+            (pref_suf.0, pref_suf.1, i)
+        }).collect();
+
+    ret
+
+}
+  
   
