@@ -1,7 +1,7 @@
 use crate::account::*;
 use sha1::{Sha1, Digest};
 use rayon::prelude::*;
-use std::time::Instant;
+use std::{time::Instant, collections::HashMap};
 
 fn sha1(account: &Account) -> (String, String) {
 
@@ -49,5 +49,18 @@ pub fn all_sha1_timed(accounts: &[Account]) -> Vec<(String, String, &Account)> {
     println!("{} µs to calculate all sha1", (t1 - t0).as_micros());
     ret
 }
-  
+
+pub fn sha1_by_prefix(accounts: &[Account]) -> HashMap<String, Vec<(String, &Account)>> {
+    
+    let hash_vals = all_sha1(accounts);
+    let mut map = HashMap::<String, Vec<(String, &Account)>>::new();
+
+    for hash_val in hash_vals {
+        let suf = hash_val.1.clone();
+        map.entry(hash_val.0)
+        .and_modify(|v| v.push((hash_val.1, hash_val.2)))
+        .or_insert_with(|| vec![(suf, hash_val.2)]);
+    } 
+    map
+}  
   
