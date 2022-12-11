@@ -2,7 +2,11 @@ use crate::account::*;
 use sha1::{Sha1, Digest};
 use rayon::prelude::*;
 use std::{time::Instant, collections::HashMap};
+use crate::error::Error;
 
+/*
+    Function which calculate the sha1 of a password in a sequential way 
+ */
 fn sha1(account: &Account) -> (String, String) {
 
     // create a Sha1 object
@@ -22,6 +26,9 @@ fn sha1(account: &Account) -> (String, String) {
     (prefix, suffix)
 }
 
+/*
+    Function which calculate the sha1 of a password using all the core of the machine
+ */
 fn all_sha1(accounts: &[Account]) -> Vec<(String, String, &Account)> {
 
     // parallele iterator : add prefexix, suffix, and ref_account of each accounts to the vector ret
@@ -50,6 +57,9 @@ pub fn all_sha1_timed(accounts: &[Account]) -> Vec<(String, String, &Account)> {
     ret
 }
 
+/*
+    Function which returns a HashMap which group the accounts according to their prefix 
+ */
 pub fn sha1_by_prefix(accounts: &[Account]) -> HashMap<String, Vec<(String, &Account)>> {
     
     let hash_vals = all_sha1(accounts);
@@ -62,5 +72,48 @@ pub fn sha1_by_prefix(accounts: &[Account]) -> HashMap<String, Vec<(String, &Acc
         .or_insert_with(|| vec![(suf, hash_val.2)]);
     } 
     map
-}  
+}
+
+/*
+    Function wich retrieve all the suffixes of password with the site Have I been pwned? 
+    according to a defined prefix.  
+ */
+fn get_page(prefix: &str) -> Result<Vec<String>, Error> {
+
+    let url = String::from("https://api.pwnedpasswords.com/range/") + prefix;
+    let body = reqwest::blocking::get(url)?.text()?;
+    let lines_vec = body.lines().map(String::from).collect();
+
+    Ok(lines_vec)
+}
+
+/*
+    Function which returns, from a prefix, a Hash table with the number of occurences
+    the the password has been hacked
+ */
+fn get_suffixes(prefix: &str) -> Result<HashMap<String, u64>, Error> {
+
+    let mut hash_map = HashMap::<String, u64>::new();
+
+    let lines = get_page(prefix)?;
+    for line in lines {
+        let val: Vec<&str> = line.split(':').collect();
+        // we are sure all suffixes are unique
+        hash_map.insert(String::from(val[0]), val[1].parse::<u64>()?);
+    }
+    Ok(hash_map)
+}
+  
+
+impl From<reqwest::Error> for Error {
+    fn from(item: reqwest::Error) -> Self {
+      Error::ReqwestError(item)
+    }
+}
+
+impl From<std::num::ParseIntError> for Error {
+    fn from(item: std::num::ParseIntError) -> Self {
+      Error::ParseIntError(item)
+    }
+}
   
