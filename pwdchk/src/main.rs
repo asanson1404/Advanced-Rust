@@ -16,6 +16,8 @@ struct AppArgs {
 enum Command {
     /// Check duplicate passwords from command line
     Group(GroupArgs),
+    /// Evaluate the performances of par_iter() / iter() functions
+    Hipb(HipbArgs), 
 }
 
 #[derive(Args)]
@@ -30,6 +32,13 @@ struct GroupArgs {
     account: Vec<Account>,
     #[clap(short, long)]
     /// Load passwords from a file
+    file: Option<PathBuf>,
+}
+
+#[derive(Args)]
+struct HipbArgs {
+    #[clap(required = true)]
+    /// Load accounts and estimate the time to calculate their SHA-1
     file: Option<PathBuf>,
 }
 
@@ -58,6 +67,11 @@ fn main() -> Result<(), error::Error> {
                     }
                 }
             }
+        }
+        Command::Hipb(args) => {
+            // Should display the time to calculate the the SHA-1
+            let accounts = Account::from_file(&args.file.unwrap())?;
+            hibp::all_sha1_timed(&accounts);
         }
     }
     Ok(())

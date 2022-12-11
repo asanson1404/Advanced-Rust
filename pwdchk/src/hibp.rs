@@ -1,6 +1,7 @@
 use crate::account::*;
 use sha1::{Sha1, Digest};
 use rayon::prelude::*;
+use std::time::Instant;
 
 fn sha1(account: &Account) -> (String, String) {
 
@@ -32,7 +33,21 @@ fn all_sha1(accounts: &[Account]) -> Vec<(String, String, &Account)> {
         }).collect();
 
     ret
+}
 
+/*
+    Function to compare the performances of par_iter and iter functions
+    Display the time of sha1 calcuation :
+        - with iter        ---> 235374 µs to compute all
+        - with par_iter    ---> 58791  µs to compute all
+    Using mutli-core calculation is 4 times faster !!!
+ */
+pub fn all_sha1_timed(accounts: &[Account]) -> Vec<(String, String, &Account)> {
+    let t0 = Instant::now();
+    let ret = all_sha1(accounts);
+    let t1 = Instant::now();
+    println!("{} µs to calculate all sha1", (t1 - t0).as_micros());
+    ret
 }
   
   
