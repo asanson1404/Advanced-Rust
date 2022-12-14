@@ -60,7 +60,7 @@ pub fn all_sha1_timed(accounts: &[Account]) -> Vec<(String, String, &Account)> {
 /*
     Function which returns a HashMap which group the accounts according to their prefix 
  */
-pub fn sha1_by_prefix(accounts: &[Account]) -> HashMap<String, Vec<(String, &Account)>> {
+fn sha1_by_prefix(accounts: &[Account]) -> HashMap<String, Vec<(String, &Account)>> {
     
     let hash_vals = all_sha1(accounts);
     let mut map = HashMap::<String, Vec<(String, &Account)>>::new();
@@ -89,7 +89,7 @@ fn get_page(prefix: &str) -> Result<Vec<String>, Error> {
 
 /*
     Function which returns, from a prefix, a Hash table with the number of occurences
-    the the password has been hacked
+    a password has been hacked
  */
 fn get_suffixes(prefix: &str) -> Result<HashMap<String, u64>, Error> {
 
@@ -103,7 +103,36 @@ fn get_suffixes(prefix: &str) -> Result<HashMap<String, u64>, Error> {
     }
     Ok(hash_map)
 }
-  
+
+/*
+    Function which returns a list of the accounts which already have been hacked with the number of occurences.
+    The list is sorted.
+ */
+pub fn check_accounts(accounts: &[Account]) -> Result<Vec<(&Account, u64)>, Error> {
+    
+    let mut ret = Vec::<(&Account, u64)>::new();
+    let accounts_pref = sha1_by_prefix(accounts);
+
+    accounts_pref.iter().for_each(|(a_pref, a_sufs)| {
+
+        let hacked_sufs = get_suffixes(a_pref.as_str()).unwrap();
+
+        for a_suf in a_sufs.iter() {    // Scan all the suffixes for a same prefix (users' accounts)
+            if let Some(occ) = hacked_sufs.get(&a_suf.0) { // Verify if a_suf.0 is contained in the hashmap
+                ret.push((a_suf.1, *occ));
+            }
+            else {
+                ret.push((a_suf.1, 0));
+            }
+        }
+    });
+
+    // Sort the vector ret, safe passwords first
+    ret.sort_unstable_by_key(|k| k.1); 
+
+    Ok(ret)
+}
+
 
 impl From<reqwest::Error> for Error {
     fn from(item: reqwest::Error) -> Self {

@@ -71,11 +71,9 @@ fn main() -> Result<(), error::Error> {
         Command::Hipb(args) => {
             // Should display the time to calculate the the SHA-1
             let accounts = Account::from_file(&args.file.unwrap())?;
-            hibp::all_sha1_timed(&accounts);
-            // Gather the same prefix accounts in a Hashmap and display it
-            let hash_map = hibp::sha1_by_prefix(&accounts);
-            println!("{:#?}", hash_map);
-            
+            // Check if an account is vulnerable
+            let pwd_hack = hibp::check_accounts(&accounts)?;
+            println!("{:#?}", pwd_hack);
         }
     }
     Ok(())
