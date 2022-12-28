@@ -105,6 +105,7 @@ async fn main() -> Result<(), error::Error> {
                     }
                 }
                 Err(error::Error::IoError(_)) => println!("{}: failed to lookup address information: Name or service not known", args.host),
+                Err(error::Error::Timeout)    => println!("{}:{} timed out", args.host, args.port),
                 Err(_) => println!("Another error : {:?}", res),
             }
         }
