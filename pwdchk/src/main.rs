@@ -94,12 +94,18 @@ async fn main() -> Result<(), error::Error> {
         }
 
         Command::Ping(args) => {
-            //let t = scanner::net::tcp_ping(args.host.as_str(), args.port).await;
-            if scanner::net::tcp_ping(args.host.as_str(), args.port).await {
-                println!("{}:{} is open", args.host, args.port);
-            }
-            else {
-                println!("{}:{} is closed", args.host, args.port);
+            let res = scanner::net::tcp_ping(args.host.as_str(), args.port).await;
+            match res {
+                Ok(a) => {
+                    if a {
+                        println!("{}:{} is open", args.host, args.port);
+                    }
+                    else {
+                        println!("{}:{} is closed", args.host, args.port);
+                    }
+                }
+                Err(error::Error::IoError(_)) => println!("{}: failed to lookup address information: Name or service not known", args.host),
+                Err(_) => println!("Another error : {:?}", res),
             }
         }
     }
