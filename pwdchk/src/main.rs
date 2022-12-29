@@ -50,10 +50,10 @@ struct HipbArgs {
 struct PingArgs {
     #[clap(required = true)]
     /// The host you are trying to open a connection with
-    host: String,
+    hosts: String,
     #[clap(required = true)]
     /// The port with wich you wants to reach the host 
-    port: u16,
+    ports: String,
 
 }
 
@@ -94,20 +94,33 @@ async fn main() -> Result<(), error::Error> {
         }
 
         Command::Ping(args) => {
-            let res = scanner::net::tcp_ping(args.host.as_str(), args.port).await;
-            match res {
-                Ok(a) => {
-                    if a {
-                        println!("{}:{} is open", args.host, args.port);
-                    }
-                    else {
-                        println!("{}:{} is closed", args.host, args.port);
-                    }
-                }
-                Err(error::Error::IoError(_)) => println!("{}: failed to lookup address information: Name or service not known", args.host),
-                Err(error::Error::Timeout)    => println!("{}:{} timed out", args.host, args.port),
-                Err(_) => println!("Another error : {:?}", res),
+            let hosts: Vec<&str> = args.hosts.split(',').collect();
+            let tmp_ports: Vec<&str> = args.ports.split(',').collect();
+            let mut ports: Vec<u16> = Vec::new();
+
+            // Convert port from string to u16
+            for port in tmp_ports {
+                ports.push(port.parse::<u16>()?);
             }
+            
+            let res = scanner::net::tcp_mping(&hosts, &ports).await;
+
+            for conn in res {
+                match conn.2 {
+                    Ok(a) => {
+                        if a {
+                            println!("{}:{} is open", conn.0, conn.1);
+                        }
+                        else {
+                            println!("{}:{} is closed", conn.0, conn.1);
+                        }
+                    }
+                    Err(error::Error::IoError(_)) => println!("{}: failed to lookup address information: Name or service not known", conn.0),
+                    Err(error::Error::Timeout)    => println!("{}:{} timed out", conn.0, conn.1),
+                    Err(_) => println!("Another error : {:?}", conn.2),
+                }
+            }
+            
         }
     }
     Ok(())
