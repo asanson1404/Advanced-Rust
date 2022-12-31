@@ -1,5 +1,3 @@
-use futures::Future;
-
 #[derive(Debug)]
 pub enum Error {
   IoError(std::io::Error),

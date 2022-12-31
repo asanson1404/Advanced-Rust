@@ -1,9 +1,11 @@
 use tokio::net::{TcpStream, lookup_host};
 use tokio::time::timeout;
+use std::str::FromStr;
 use std::time::Duration;
 use crate::error::Error;
 use futures::stream;
 use futures::stream::{StreamExt};
+use ipnet::Ipv4Net;
 
 /*
     Function which test if it's possible to connect to host from a specified port
@@ -56,4 +58,18 @@ pub async fn tcp_mping<'a>(targets: &[&'a str], ports: &[u16]) -> Vec<(&'a str, 
     }
 
     tcp_ping_many(&hp_vec).await
+}
+
+/*
+    Fonction which returns a list of host from a specfied string
+    Usefull for CIDR notation
+*/
+pub fn expand_net(host: &str) -> Vec<String> {
+
+    match Ipv4Net::from_str(host) {
+        Ok(a) => {
+            a.hosts().map(|h| h.to_string()).collect::<Vec<String>>()
+        }
+        Err(_) => vec![String::from(host)]
+    }
 }

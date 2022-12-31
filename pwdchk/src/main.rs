@@ -20,7 +20,7 @@ enum Command {
     Group(GroupArgs),
     /// Evaluate the performances of par_iter() / iter() functions
     Hipb(HipbArgs),
-    /// Check is a host adress and a port number is pingable
+    /// Check if a host adress and a port number is pingable
     Ping(PingArgs),
 }
 
@@ -48,6 +48,9 @@ struct HipbArgs {
 
 #[derive(Args)]
 struct PingArgs {
+    #[clap(short = 'o', long = "open-only", required = false)]
+    /// Display only the open ports
+    o_open: bool,
     #[clap(required = true)]
     /// The host you are trying to open a connection with
     hosts: String,
@@ -94,16 +97,26 @@ async fn main() -> Result<(), error::Error> {
         }
 
         Command::Ping(args) => {
-            let hosts: Vec<&str> = args.hosts.split(',').collect();
-            let tmp_ports: Vec<&str> = args.ports.split(',').collect();
-            let mut ports: Vec<u16> = Vec::new();
+
+            let tmp_hosts: Vec<&str>          = args.hosts.split(',').collect();
+            let tmp_ports: Vec<&str>          = args.ports.split(',').collect();
+            let mut ports: Vec<u16>           = Vec::new();
+            let mut hosts_string: Vec<String> = Vec::new();
 
             // Convert port from string to u16
             for port in tmp_ports {
                 ports.push(port.parse::<u16>()?);
             }
+
+            // Create the hosts (String) vector taking into account the CIDR notation
+            for host in tmp_hosts {
+                hosts_string.append(&mut scanner::net::expand_net(host));
+            }
             
-            let res = scanner::net::tcp_mping(&hosts, &ports).await;
+            // Convert String vector into &str vector
+            let hosts_str = hosts_string.iter().map(String::as_str).collect::<Vec<&str>>();
+
+            let res = scanner::net::tcp_mping(&hosts_str, &ports).await;
 
             for conn in res {
                 match conn.2 {
@@ -111,12 +124,12 @@ async fn main() -> Result<(), error::Error> {
                         if a {
                             println!("{}:{} is open", conn.0, conn.1);
                         }
-                        else {
+                        else if !args.o_open {
                             println!("{}:{} is closed", conn.0, conn.1);
                         }
                     }
                     Err(error::Error::IoError(_)) => println!("{}: failed to lookup address information: Name or service not known", conn.0),
-                    Err(error::Error::Timeout)    => println!("{}:{} timed out", conn.0, conn.1),
+                    Err(error::Error::Timeout)    => if !args.o_open {println!("{}:{} timed out", conn.0, conn.1)},
                     Err(_) => println!("Another error : {:?}", conn.2),
                 }
             }
