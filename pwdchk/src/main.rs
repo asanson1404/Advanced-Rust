@@ -2,6 +2,7 @@ use clap::{Args, Parser, Subcommand, ArgGroup};
 mod account;
 mod scanner;
 use account::*;
+use scanner::IdentificationResult;
 use std::path::PathBuf;
 mod error;
 mod hibp;
@@ -121,11 +122,10 @@ async fn main() -> Result<(), error::Error> {
             for conn in res {
                 match conn.2 {
                     Ok(a) => {
-                        if a {
-                            println!("{}:{} is open", conn.0, conn.1);
-                        }
-                        else if !args.o_open {
-                            println!("{}:{} is closed", conn.0, conn.1);
+                        match a {
+                            IdentificationResult::WelcomeLine(s) => println!("{}:{} is open: {s}", conn.0, conn.1),
+                            IdentificationResult::NoWelcomeLine          => println!("{}:{} is open", conn.0, conn.1),
+                            IdentificationResult::ConnectionRefused      => if !args.o_open {println!("{}:{} is closed", conn.0, conn.1);},
                         }
                     }
                     Err(error::Error::IoError(_)) => println!("{}: failed to lookup address information: Name or service not known", conn.0),
