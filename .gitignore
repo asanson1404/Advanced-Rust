@@ -1,4 +1,5 @@
 pwdchk/target/*
+tp_macro/target/*
 build/
 .vscode/
 *.txt
