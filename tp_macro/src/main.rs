@@ -13,9 +13,25 @@ macro_rules! cartesian {
     };
 }
 
+macro_rules! debug {
+
+    // If no parameters, just return the file and the line where the macro has been called
+    () => {
+        println!("{}:{}", file!(), line!())
+    };
+    
+    // Display the file and the current line, the literal expression of the argument and its value
+    ($val:expr $(,)?) => {{
+        let eval = $val;
+        println!("[{}:{}] {} = {:#?}", file!(), line!(), stringify!($val), eval);
+        eval
+    }};
+}
+
 fn main() {
 
-    let test_r1 = cartesian!(
+    // Test macro cartesian!()
+    /*let test_r1 = cartesian!(
         [1, 2, 3],
         [String::from("foo"), String::from("bar")]
       ).collect::<Vec<_>>();
@@ -28,5 +44,10 @@ fn main() {
         ['A', 'B', 'C']
       ).collect::<Vec<_>>();
 
-    println!("{test_r2:?}");
+    println!("{test_r2:?}");*/
+    
+    // Test macro debug!()
+    debug!();
+    println!("Result = {}", 10 + debug!(2*3));
+    debug!(println!("foobar"));
 }
