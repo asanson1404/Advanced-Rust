@@ -108,6 +108,41 @@ macro_rules! forth {
     };
 }
 
+trait ZeroArith {
+    fn zero_add(self, other: Self) -> Self;
+    fn zero_sub(self, other: Self) -> Self;
+    fn zero_mul(self, other: Self) -> Self;
+    fn zero_div(self, other: Self) -> Self;
+}
+
+// Macro to not repeat the match when we implement the trait ZeroArith
+macro_rules! check_match {
+    ($to_match:expr$(;)?) => {
+        match $to_match {
+            Some(res) => res,
+            None      => 0
+        }
+    };
+}
+
+macro_rules! impl_zero_arith {
+    ($($type:ty),+$(,)?) => {
+        $(impl ZeroArith for $type {
+            fn zero_add(self, other: Self) -> Self {
+                check_match!(self.checked_add(other))
+            }
+            fn zero_sub(self, other: Self) -> Self {
+                check_match!(self.checked_sub(other))
+            }
+            fn zero_mul(self, other: Self) -> Self {
+                check_match!(self.checked_mul(other))
+            }
+            fn zero_div(self, other: Self) -> Self {
+                check_match!(self.checked_div(other))
+            }
+        })+
+    }
+}
 
 fn main() {
 
@@ -134,7 +169,7 @@ fn main() {
 
     // Test macro forth!()
     // Intermediate test
-    println!("final stack = {:?}", forth!(10));
+    /*println!("final stack = {:?}", forth!(10));
     println!("final stack = {:?}", forth!(10; 20));
     println!("final stack = {:?}", forth!(10; 20; 30));
     println!("final stack = {:?}", forth!(10; 20; 30; add; 40));
@@ -142,6 +177,14 @@ fn main() {
     println!("final stack = {:?}", forth!(10; 20; 30; dup; 40; dup));
     println!("final stack = {:?}", forth!(10; 20; 30; mul; 40; mul));
     // Final test
-    println!("final stack = {:?}", forth!(10; 20; add; dup; 6; mul));
+    println!("final stack = {:?}", forth!(10; 20; add; dup; 6; mul));*/
+
+    // Test macro impl_zero_arith!()
+    impl_zero_arith!(isize, i8, i16, i32, i64, i128, usize, u8, u16, u32, u64, u128,);
+    println!("{}", 200u8.zero_add(200u8));
+    println!("{}", 200u8.zero_add(50u8));
+    println!("{}", 200u8.zero_sub(250u8));
+    println!("{}", 200u8.zero_sub(150u8));
+    println!("{}", 200u8.zero_div(0));
 
 }
