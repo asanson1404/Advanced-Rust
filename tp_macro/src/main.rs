@@ -28,6 +28,87 @@ macro_rules! debug {
     }};
 }
 
+macro_rules! forth {
+    // add followed by a rest 
+    ($stack:expr, add; $($rest:tt)+) => {
+        {
+            let a = $stack.pop().unwrap();
+            let b = $stack.pop().unwrap();
+            $stack.push(a + b);
+            forth!($stack, $($rest)+)
+        }
+    };
+    // add at the end
+    ($stack:expr, add$(;)?) => {
+        {
+            let b = $stack.pop().unwrap();
+            let a = $stack.pop().unwrap();
+            $stack.push(a + b);
+            $stack
+        }
+    };
+    // dup followed by a rest
+    ($stack:expr, dup; $($rest:tt)+) => {
+        {
+            let a = $stack.last().unwrap();
+            $stack.push(*a);
+            forth!($stack, $($rest)+)
+        }
+    };
+    // dup at the end
+    ($stack:expr, dup$(;)?) => {
+        {
+            let a = $stack.last().unwrap();
+            $stack.push(*a);
+            $stack
+        }
+    };
+    // mul followed by a rest 
+    ($stack:expr, mul; $($rest:tt)+) => {
+        {
+            let a = $stack.pop().unwrap();
+            let b = $stack.pop().unwrap();
+            $stack.push(a * b);
+            forth!($stack, $($rest)+)
+        }
+    };
+    // mul at the end
+    ($stack:expr, mul$(;)?) => {
+        {
+            let b = $stack.pop().unwrap();
+            let a = $stack.pop().unwrap();
+            $stack.push(a * b);
+            $stack
+        }
+    };
+    // First integer
+    ($val:expr$(;)?) => {
+        vec!($val)
+    };
+    // First integer followed by a rest
+    ($val:expr; $($rest:tt)+) => {
+        {
+            let mut stack = forth!($val);
+            forth! (stack, $($rest)+)
+        }
+    };
+    // The Stack followed by an integer and a rest
+    ($stack:expr, $val:expr; $($rest:tt)+) => {
+        {
+            $stack.push($val);
+            forth! ($stack, $($rest)+)
+        }
+    };
+    // Integer at the end
+    ($stack:expr, $val:expr$(;)?)=> {
+        {
+            $stack.push($val);
+            $stack
+        }
+    };
+}
+
+
 fn main() {
 
     // Test macro cartesian!()
@@ -47,7 +128,20 @@ fn main() {
     println!("{test_r2:?}");*/
     
     // Test macro debug!()
-    debug!();
+    /*debug!();
     println!("Result = {}", 10 + debug!(2*3));
-    debug!(println!("foobar"));
+    debug!(println!("foobar"));*/
+
+    // Test macro forth!()
+    // Intermediate test
+    println!("final stack = {:?}", forth!(10));
+    println!("final stack = {:?}", forth!(10; 20));
+    println!("final stack = {:?}", forth!(10; 20; 30));
+    println!("final stack = {:?}", forth!(10; 20; 30; add; 40));
+    println!("final stack = {:?}", forth!(10; 20; 30; add; 40; add));
+    println!("final stack = {:?}", forth!(10; 20; 30; dup; 40; dup));
+    println!("final stack = {:?}", forth!(10; 20; 30; mul; 40; mul));
+    // Final test
+    println!("final stack = {:?}", forth!(10; 20; add; dup; 6; mul));
+
 }
