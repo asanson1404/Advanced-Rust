@@ -4,6 +4,7 @@ mod scanner;
 use account::*;
 use scanner::IdentificationResult;
 use std::path::PathBuf;
+use macros::french;
 mod error;
 mod hibp;
 
@@ -63,7 +64,7 @@ struct PingArgs {
 
 #[tokio::main]
 async fn main() -> Result<(), error::Error> {
-    let args = AppArgs::parse();
+    /*let args = AppArgs::parse();
     match args.command {
         Command::Group(args) => {   // args is of type GroupArgs here
 
@@ -135,6 +136,9 @@ async fn main() -> Result<(), error::Error> {
             }
             
         }
-    }
+    }*/
+    // Test the error message from the french macro
+    //println!("1000 + 230 = {}", french!(11111111111111111111111122222228));
+    println!("1000 + 230 = {}", french!(1111111111));
     Ok(())
 }

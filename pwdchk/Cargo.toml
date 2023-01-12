@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "3", features = ["derive"] }
+macros = { path = "../macros" }
 futures = "0.3.25"
 ipnet = "2.7.0"
 rayon = "1.6.1"
