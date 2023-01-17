@@ -4,7 +4,7 @@ mod scanner;
 use account::*;
 use scanner::IdentificationResult;
 use std::path::PathBuf;
-use macros::french;
+use macros::{french, log_function};
 mod error;
 mod hibp;
 
@@ -60,6 +60,13 @@ struct PingArgs {
     /// The port with wich you wants to reach the host 
     ports: String,
 
+}
+
+log_function!{
+    #[must_use]
+    fn mul(a: u32, b: u32) -> u32 {
+        a * b
+    }
 }
 
 #[tokio::main]
@@ -140,5 +147,10 @@ async fn main() -> Result<(), error::Error> {
     // Test the error message from the french macro
     //println!("1000 + 230 = {}", french!(11111111111111111111111122222228));
     println!("1000 + 230 = {}", french!(1111111111));
+
+    // Test the macro log_function
+    let x = mul(10, 20);
+    println!("x = {x}");
+
     Ok(())
 }
