@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::vec;
 use std::fmt::Display;
+
 use crate::error;
 use std::path::Path;
 use std::fs::File;
@@ -60,6 +61,21 @@ impl FromStr for Account {
     }
 }
 
+impl TryFrom<&str> for Account {
+  type Error = error::Error;
+
+  fn try_from(s: &str) -> Result<Self, Self::Error> {
+    let account = Self::from_str(s)?;
+    if account.login.is_empty() {
+      return Err(error::Error::EmptyLogin);
+    }
+    else if account.password.is_empty() {
+      return Err(error::Error::EmptyPassword);
+    }
+    Ok(account)
+  }
+}
+
 impl Display for error::Error {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(f, "Error message")
@@ -84,7 +100,7 @@ pub mod tests {
   proptest! {
     #[test]
     fn test_account_creation(s in ".*:.*") {
-      let account = Account::from_str(&s).unwrap();
+      let account = Account::try_from(s.as_str()).unwrap();
       prop_assert_eq!(account.login.contains(':'), false);
       let concat = format!("{}:{}", account.login, account.password);
       prop_assert_eq!(concat, s);
