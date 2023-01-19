@@ -1,4 +1,4 @@
-use crate::account::*;
+use crate::account::Account;
 use sha1::{Sha1, Digest};
 use rayon::prelude::*;
 use std::{time::Instant, collections::HashMap};
@@ -17,7 +17,7 @@ fn sha1(account: &Account) -> (String, String) {
     let hash_result = hasher.finalize();
 
     // Create a variable which contains the capital hexadecimal of hash_result
-    let hex_hash = format!("{hash_result:X}");//.split_at(5);
+    let hex_hash = format!("{hash_result:X}");
     let pref_suf = hex_hash.split_at(5);
 
     let prefix = String::from(pref_suf.0);
@@ -146,3 +146,29 @@ impl From<std::num::ParseIntError> for Error {
     }
 }
   
+// Sous module tests à l'intérieur du module hipb
+#[cfg(test)]
+pub mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_both_sha1_func() {
+
+        let mut my_accounts: Vec<Account> = Vec::new();
+
+        // Loop to create 10,000 accounts of different login and password
+        for i in 0..10000 {
+            my_accounts.push(Account::new(&format!("user{}", i), &format!("passwordofuser{}", i)));
+        }
+
+        // Calculate parallely the SHA-1
+        let par_sha1 = all_sha1(&my_accounts);
+
+        // Loop to compare if both functions generate the same SHA-1
+        for i in 0..10000 {
+            let test = par_sha1[i].clone();
+            assert_eq!((test.0, test.1), sha1(&my_accounts[i]))
+        }
+    }
+}
