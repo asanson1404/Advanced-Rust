@@ -73,3 +73,22 @@ impl From<std::io::Error> for error::Error {
     error::Error::IoError(item)
   }
 }
+
+// Sous module tests à l'intérieur du module account
+#[cfg(test)]
+pub mod tests {
+
+  use super::*;
+  use proptest::prelude::*;
+
+  proptest! {
+    #[test]
+    fn test_account_creation(s in ".*:.*") {
+      let account = Account::from_str(&s).unwrap();
+      prop_assert_eq!(account.login.contains(':'), false);
+      let concat = format!("{}:{}", account.login, account.password);
+      prop_assert_eq!(concat, s);
+    }
+  }
+
+}
