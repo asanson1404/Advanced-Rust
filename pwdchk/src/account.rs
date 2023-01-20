@@ -99,12 +99,38 @@ pub mod tests {
 
   proptest! {
     #[test]
-    fn test_account_creation(s in ".*:.*") {
+    fn test_account_creation(s in "[^:]+:.+") {
       let account = Account::try_from(s.as_str()).unwrap();
       prop_assert_eq!(account.login.contains(':'), false);
       let concat = format!("{}:{}", account.login, account.password);
       prop_assert_eq!(concat, s);
     }
+  }
+
+  #[test]
+  fn test_empty_login() {
+    let el_account = Account::try_from(":password");
+    assert!(matches!(el_account, Err(error::Error::EmptyLogin)));
+  }
+
+  #[test]
+  fn test_empty_password() {
+    let el_account = Account::try_from("login:");
+    assert!(matches!(el_account, Err(error::Error::EmptyPassword)));
+  }
+
+  #[test]
+  fn test_empty_lp() {
+    let el_account = Account::try_from(":");
+    // If we look at how try_from() is coded, and if there are neither login nor password
+    // only the EmptyLogin error is returned
+    assert!(matches!(el_account, Err(error::Error::EmptyLogin)));
+  }
+
+  #[test]
+  fn test_nosemicolon() {
+    let el_account = Account::try_from("iapeubvpdzb");
+    assert!(matches!(el_account, Err(error::Error::NoColon)));
   }
 
 }
