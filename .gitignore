@@ -1,6 +1,7 @@
 pwdchk/target/*
 tp_macro/target/*
 macros/target/*
+check_elf/target/*
 build/
 .vscode/
 *.txt
