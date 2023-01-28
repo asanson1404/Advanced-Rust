@@ -28,3 +28,29 @@ fn test_max_alloc() {
         assert_eq!(try_alloc, null_mut());
     }
 }
+
+#[test]
+fn one_block_alloc() {
+
+    // Allocator created on the heap
+    let alloc = Box::new(MyAlloc::new());
+    let my_alloc = alloc.as_ref();
+
+    // Layout of one block's size
+    let one_block = Layout::new::<[u8; ALLOC_BLOCK_SIZE]>();
+
+    // Alloc block by block all the memory 
+    for _i in 0..ALLOC_BLOCK_NUM {
+        unsafe {
+            my_alloc.alloc(one_block);
+        }
+    }
+
+    // All the memory should be allocated 
+    // Not possible anymore to alloc a new block
+    unsafe {
+        let try_alloc = my_alloc.alloc(one_block);
+        assert_eq!(try_alloc, null_mut());
+    }
+
+}
