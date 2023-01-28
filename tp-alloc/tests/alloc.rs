@@ -30,7 +30,7 @@ fn test_max_alloc() {
 }
 
 #[test]
-fn one_block_alloc() {
+fn test_one_block_alloc() {
 
     // Allocator created on the heap
     let alloc = Box::new(MyAlloc::new());
@@ -40,9 +40,10 @@ fn one_block_alloc() {
     let one_block = Layout::new::<[u8; ALLOC_BLOCK_SIZE]>();
 
     // Alloc block by block all the memory 
-    for _i in 0..ALLOC_BLOCK_NUM {
+    for i in 0..ALLOC_BLOCK_NUM {
         unsafe {
-            my_alloc.alloc(one_block);
+            let ret = my_alloc.alloc(one_block);
+            assert_eq!(ret, my_alloc.memory.get().cast::<u8>().add(i))
         }
     }
 
@@ -52,5 +53,31 @@ fn one_block_alloc() {
         let try_alloc = my_alloc.alloc(one_block);
         assert_eq!(try_alloc, null_mut());
     }
+}
 
+#[test]
+fn test_alloc_dealloc() {
+    
+    // Allocator created on the heap
+    let alloc = Box::new(MyAlloc::new());
+    let my_alloc = alloc.as_ref();
+
+    // Layout of the maximum size of the memory
+    let all_mem = Layout::new::<[u8; ALLOC_BLOCK_NUM*ALLOC_BLOCK_SIZE]>();
+
+    // Alloc and then dealloc all the memory 3 times
+    // If the memory hasn't been deallocated correctly, 
+    // alloc function wouldn't return the first block of the memory
+    for _i in 0..3 {
+
+        // Alloc all the memory
+        unsafe { 
+            let first_alloc_block = my_alloc.alloc(all_mem);
+            let first_block_of_mem = my_alloc.memory.get().cast::<u8>();
+            assert_eq!(first_alloc_block, first_block_of_mem);
+        }
+
+        // Dealloc all the memory
+        unsafe { my_alloc.dealloc(my_alloc.memory.get().cast::<u8>(), all_mem); }
+    }
 }

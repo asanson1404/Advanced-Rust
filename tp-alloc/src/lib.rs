@@ -49,12 +49,11 @@ unsafe impl GlobalAlloc for MyAlloc {
         let first_ptr = self.memory.get().cast::<u8>();
         // Get the lenght from first_ptr to ptr
         let offset = ptr.offset_from(first_ptr);
-        // Here we don't need a ceil because usize automatically round down
+        // Here we don't need a ceil because usize automatically round down ((3 as usize) / (2 as usize) = 1)
         // First block to dealloc 
         let first_block = offset as usize / ALLOC_BLOCK_SIZE;
         // Round up the division
         let num_blocks = ((layout.size() / ALLOC_BLOCK_SIZE) as f32).ceil() as usize;
-        // Free the blocks
         self.data.lock().mark_blocks(first_block, num_blocks, true);
     }
 }
