@@ -2,6 +2,7 @@ pwdchk/target/*
 tp_macro/target/*
 macros/target/*
 check_elf/target/*
+tp-alloc/target/*
 build/
 .vscode/
 *.txt
