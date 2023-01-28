@@ -3,15 +3,15 @@ use std::cell::UnsafeCell;
 use std::alloc::{GlobalAlloc, Layout};
 use std::ptr::null_mut;
 
-const ALLOC_BLOCK_SIZE: usize = 64;       // 64 bytes in each blocks
-const ALLOC_BLOCK_NUM:  usize = 16384;    // 16_384 blocks available
+pub const ALLOC_BLOCK_SIZE: usize = 64;       // 64 bytes in each blocks
+pub const ALLOC_BLOCK_NUM:  usize = 16384;    // 16_384 blocks available
 
-pub struct MyAllocData {
+struct MyAllocData {
     block_status: [bool; ALLOC_BLOCK_NUM],
 }
 
 pub struct MyAlloc {
-    memory: UnsafeCell<[u8; ALLOC_BLOCK_NUM*ALLOC_BLOCK_SIZE]>,
+    pub memory: UnsafeCell<[u8; ALLOC_BLOCK_NUM*ALLOC_BLOCK_SIZE]>,
     data: Mutex<MyAllocData>,
 }
 
@@ -32,8 +32,8 @@ impl MyAlloc {
 unsafe impl GlobalAlloc for MyAlloc {
 
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        // usize will round down the result of the div, that's why we add 1
-        let num_blocks = (layout.size() / ALLOC_BLOCK_SIZE) + 1;
+        // Round up the division
+        let num_blocks = ((layout.size() / ALLOC_BLOCK_SIZE) as f32).ceil() as usize;
         let first_block = self.data.lock().find_blocks(num_blocks);
         match first_block {
             Some(index)  => {
@@ -49,11 +49,11 @@ unsafe impl GlobalAlloc for MyAlloc {
         let first_ptr = self.memory.get().cast::<u8>();
         // Get the lenght from first_ptr to ptr
         let offset = ptr.offset_from(first_ptr);
-        // Here we don't add 1 because we want to round down
+        // Here we don't need a ceil because usize automatically round down
         // First block to dealloc 
         let first_block = offset as usize / ALLOC_BLOCK_SIZE;
-        // usize will round down the result of the div, that's why we add 1
-        let num_blocks = (layout.size() / ALLOC_BLOCK_SIZE) + 1;
+        // Round up the division
+        let num_blocks = ((layout.size() / ALLOC_BLOCK_SIZE) as f32).ceil() as usize;
         // Free the blocks
         self.data.lock().mark_blocks(first_block, num_blocks, true);
     }
@@ -70,7 +70,7 @@ impl MyAllocData {
     fn mark_blocks(&mut self, first_block: usize, num_blocks: usize, state: bool) {
 
         if first_block >= ALLOC_BLOCK_NUM { panic!("Invalid first block index"); }
-        else if first_block + num_blocks >= ALLOC_BLOCK_NUM { panic!("Some blocks are out of bounds"); }
+        else if (first_block + (num_blocks - 1)) >= ALLOC_BLOCK_NUM { panic!("Some blocks are out of bounds"); }
         else {
             for i in first_block..(first_block + num_blocks) {
                 self.block_status[i] = state;
@@ -88,7 +88,7 @@ impl MyAllocData {
             if self.block_status[i] { 
                 count += 1;
                 if count == num_blocks {
-                    return Some(i - num_blocks + 1);
+                    return Some(i - (num_blocks - 1));
                 }
             }
             else {
@@ -100,13 +100,95 @@ impl MyAllocData {
 }
 
 
-//#[cfg(test)]
-//mod tests {
-//
-//    #[test]
-//    fn it_works() {
-//        let test: usize = 112/64;
-//        println!("{}", test);
-//        assert_eq!(1, test);
-//    }
-//}
+
+
+
+
+//Guillaume Bisson
+/*use parking_lot::Mutex;
+use std::cell::UnsafeCell;
+use std::alloc::GlobalAlloc;
+use std::ptr::*;
+
+pub const ALLOC_BLOCK_SIZE: usize = 64;
+pub const ALLOC_BLOCK_NUM: usize = 16384;
+
+
+pub struct MyAllocData {
+    blocks : [bool ; ALLOC_BLOCK_NUM],
+}
+
+pub struct MyAlloc {
+    memory: UnsafeCell<[u8; ALLOC_BLOCK_SIZE * ALLOC_BLOCK_NUM]>,
+    data: Mutex<MyAllocData>,
+}
+
+impl MyAllocData {
+    pub fn mark_blocks(&mut self, first_block: usize, num_blocks: usize, state: bool) {
+        for i in first_block..first_block + num_blocks {
+            self.blocks[i] = state;
+        }
+    }
+
+    pub fn find_blocks(&self, num_blocks: usize) -> Option<usize> {
+        let mut cpt = 0;
+        for (size, &block) in self.blocks.iter().enumerate() {
+            if !block {
+                cpt += 1;
+                if cpt == num_blocks {
+                    return Some(size - num_blocks + 1);
+                }
+            } else {
+                cpt = 0;
+            }
+        }
+        None
+    }
+    
+}
+
+unsafe impl Sync for MyAlloc {}
+
+impl MyAlloc {
+    pub const fn new() -> Self {
+        MyAlloc {
+            memory: UnsafeCell::new([0; ALLOC_BLOCK_SIZE * ALLOC_BLOCK_NUM]),
+            // State false by default == free
+            data: Mutex::new(MyAllocData {blocks: [false ; ALLOC_BLOCK_NUM ]}),
+        }
+    }
+}
+
+
+unsafe impl GlobalAlloc for MyAlloc {
+
+    unsafe fn alloc(&self, layout: std::alloc::Layout) -> *mut u8 {
+        //Create our num_blocks and first_block with locking the mutex
+        let num_blocks = (layout.size() + ALLOC_BLOCK_SIZE - 1) / ALLOC_BLOCK_SIZE;
+        let first_block = self.data.lock().find_blocks(num_blocks);
+        match first_block {
+            Some(first_block) => {
+                self.data.lock().mark_blocks(first_block, num_blocks, true);
+                let memory_ptr = self.memory.get() as *mut u8;
+                // Using offset to get the distance fromthe pointer
+                memory_ptr.offset((first_block * ALLOC_BLOCK_SIZE) as isize)
+            },
+            None => null_mut()
+        }
+    }
+    
+    
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: std::alloc::Layout) {
+        // Get the start pointer of the memory array
+        let start_ptr = self.memory.get() as *mut u8;
+        // offset between the two pointers
+        let offset = ptr.offset_from(start_ptr) as usize;
+        // Calculate the block index from the offset
+        let block_index = offset / ALLOC_BLOCK_SIZE;
+        // numlber of blocks to be dealloc
+        let num_blocks = (layout.size() + ALLOC_BLOCK_SIZE - 1) / ALLOC_BLOCK_SIZE;
+        // Mark the blocks as free
+        self.data.lock().mark_blocks(block_index, num_blocks, false);
+    }
+    
+}*/
