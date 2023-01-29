@@ -1,6 +1,6 @@
 use tp_alloc::*;
-use std::alloc::{GlobalAlloc, Layout};
-use std::ptr::null_mut;
+use core::alloc::{GlobalAlloc, Layout};
+use core::ptr::null_mut;
 
 #[test]
 fn test_max_alloc() {

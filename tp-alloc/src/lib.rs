@@ -1,7 +1,9 @@
+#![no_std]
+
 use parking_lot::Mutex;
-use std::cell::UnsafeCell;
-use std::alloc::{GlobalAlloc, Layout};
-use std::ptr::null_mut;
+use core::cell::UnsafeCell;
+use core::alloc::{GlobalAlloc, Layout};
+use core::ptr::null_mut;
 
 pub const ALLOC_BLOCK_SIZE: usize = 64;       // 64 bytes in each blocks
 pub const ALLOC_BLOCK_NUM:  usize = 16384;    // 16_384 blocks available
