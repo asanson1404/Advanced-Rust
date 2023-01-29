@@ -32,13 +32,13 @@ impl MyAlloc {
 unsafe impl GlobalAlloc for MyAlloc {
 
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        // Round up the division
-        let num_blocks = ((layout.size() / ALLOC_BLOCK_SIZE) as f32).ceil() as usize;
+        // Round up the division, behave like a ceil
+        let num_blocks = (layout.size() + ALLOC_BLOCK_SIZE -1 ) / ALLOC_BLOCK_SIZE;
         let first_block = self.data.lock().find_blocks(num_blocks);
         match first_block {
             Some(index)  => {
                 self.data.lock().mark_blocks(index, num_blocks, false);
-                self.memory.get().cast::<u8>().add(index)
+                self.memory.get().cast::<u8>().add(index*ALLOC_BLOCK_SIZE)
             }
             None => null_mut(),
         }
@@ -52,8 +52,8 @@ unsafe impl GlobalAlloc for MyAlloc {
         // Here we don't need a ceil because usize automatically round down ((3 as usize) / (2 as usize) = 1)
         // First block to dealloc 
         let first_block = offset as usize / ALLOC_BLOCK_SIZE;
-        // Round up the division
-        let num_blocks = ((layout.size() / ALLOC_BLOCK_SIZE) as f32).ceil() as usize;
+        // Round up the division, behave like a ceil
+        let num_blocks = (layout.size() + ALLOC_BLOCK_SIZE -1 ) / ALLOC_BLOCK_SIZE;
         self.data.lock().mark_blocks(first_block, num_blocks, true);
     }
 }

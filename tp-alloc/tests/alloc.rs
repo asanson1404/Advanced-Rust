@@ -37,13 +37,13 @@ fn test_one_block_alloc() {
     let my_alloc = alloc.as_ref();
 
     // Layout of one block's size
-    let one_block = Layout::new::<[u8; ALLOC_BLOCK_SIZE]>();
+    let one_block = Layout::new::<u8>();
 
     // Alloc block by block all the memory 
     for i in 0..ALLOC_BLOCK_NUM {
         unsafe {
             let ret = my_alloc.alloc(one_block);
-            assert_eq!(ret, my_alloc.memory.get().cast::<u8>().add(i))
+            assert_eq!(ret, my_alloc.memory.get().cast::<u8>().add(i*ALLOC_BLOCK_SIZE))
         }
     }
 
